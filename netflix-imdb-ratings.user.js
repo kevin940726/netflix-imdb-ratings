@@ -566,6 +566,7 @@
     _handleModal(modal) {
       const info = TitleResolver.fromModal(modal);
       const titleKey = info ? `${info.title}||${info.year || ''}` : null;
+      if (!titleKey) return;
       const prevKey = this._processed.get(modal);
       if (prevKey && prevKey === titleKey) return;
       if (prevKey && prevKey !== titleKey) {
@@ -608,8 +609,9 @@
         preview.querySelector('img[alt]');
       let title = titleEl?.getAttribute('alt')?.trim() || titleEl?.getAttribute('aria-label')?.trim() || null;
       if (!title) title = preview.querySelector('.video-title, .about-header, h3, h4')?.textContent?.trim() || null;
+      if (!title) return;
       const year = preview.querySelector('.year, .meta .year, [data-uia="year"]')?.innerText?.trim()?.match(/(\d{4})/)?.[1] || null;
-      const titleKey = title ? `${title}||${year || ''}` : null;
+      const titleKey = `${title}||${year || ''}`;
       const prevKey = this._processed.get(preview);
       if (prevKey && prevKey === titleKey) return;
       if (prevKey && prevKey !== titleKey) {
