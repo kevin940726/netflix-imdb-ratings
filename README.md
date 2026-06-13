@@ -10,7 +10,9 @@ A Tampermonkey userscript that shows IMDb ratings on Netflix titles with local c
 - Local IndexedDB cache with tiered TTL (7d/30d/90d based on title age)
 - TMDb-powered title search (unlimited, free)
 - OMDb rating lookup by IMDb ID
-- TMDb rating fallback when OMDb returns N/A
+- IMDb scraper fallback (OG bot User-Agent bypasses bot protection)
+- TMDb rating fallback when both OMDb and IMDb scraper fail
+- OMDb search fallback when TMDb key is not set
 - Force refresh mode to refetch all titles
 - Debug mode for troubleshooting
 
@@ -25,9 +27,17 @@ A Tampermonkey userscript that shows IMDb ratings on Netflix titles with local c
 ## API Flow
 
 ```
-TMDb /search/multi  →  IMDb ID + TMDb rating
-OMDb ?i=tt1234567   →  IMDb rating (primary)
-TMDb vote_average   →  fallback when OMDb N/A
+TMDb /search/multi      →  IMDb ID + TMDb rating
+OMDb ?i=tt1234567       →  IMDb rating (primary)
+IMDb scraper (OG bot)   →  IMDb rating (fallback, no API key needed)
+TMDb vote_average       →  last resort when all above fail
+```
+
+Without TMDb key:
+```
+OMDb /?s=Title          →  IMDb ID
+OMDb ?i=tt1234567       →  IMDb rating
+IMDb scraper            →  fallback
 ```
 
 ## Badge Colors
