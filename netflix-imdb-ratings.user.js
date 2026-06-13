@@ -67,6 +67,7 @@
           }
         }
       }
+      console.warn('[Netflix IMDb] No Netflix ID found in card:', card.className, card.innerHTML?.substring(0, 200));
       return null;
     },
   };
@@ -402,10 +403,12 @@
 
   const LookupManager = {
     async resolve(container, position, title, year, netflixId) {
-      if (container.querySelector('.nimdb-badge')) return;
+      if (!netflixId) { console.warn('[Netflix IMDb] No Netflix ID for:', title, year, position); return; }
+      const existing = container.querySelector('.nimdb-badge');
+      if (existing) existing.remove();
 
-      // Cache check
-      if (!CONFIG.forceRefresh && netflixId) {
+      // Cache check: Netflix ID primary
+      if (!CONFIG.forceRefresh) {
         try {
           const cached = await IMDbDB.get(netflixId);
           if (cached && !cached._stale) { this._insertBadge(container, position, cached, netflixId); return; }
@@ -513,7 +516,7 @@
 
   const DOMObserver = {
     _observer: null,
-    _processed: new WeakSet(),
+    _processed: new WeakMap(),
     _intersectionObserver: null,
     _pendingCards: new Set(),
 
@@ -538,7 +541,7 @@
       document.querySelectorAll('.previewModal--container, [role="dialog"], .previewModal--wrapper').forEach((el) => this._handleModal(el));
       const billboard = document.querySelector('.billboard-row');
       if (billboard) this._handleBillboard(billboard);
-      document.querySelectorAll('.jawBone, .bob-card, [data-uia=" jawbone"]').forEach((el) => this._handleHoverPreview(el));
+      document.querySelectorAll('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone').forEach((el) => this._handleHoverPreview(el));
       document.querySelectorAll('.slider-item, .title-card').forEach((el) => this._observeCard(el));
     },
 
@@ -552,36 +555,39 @@
     _inspect(node) {
       if (node.matches?.('.previewModal--container, [role="dialog"], .previewModal--wrapper')) this._handleModal(node);
       if (node.matches?.('.billboard-row')) this._handleBillboard(node);
-      if (node.matches?.('.jawBone, .bob-card')) this._handleHoverPreview(node);
+      if (node.matches?.('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone')) this._handleHoverPreview(node);
       if (node.matches?.('.slider-item, .title-card')) this._observeCard(node);
       node.querySelectorAll?.('.previewModal--container, [role="dialog"], .previewModal--wrapper')?.forEach((el) => this._handleModal(el));
       node.querySelectorAll?.('.billboard-row')?.forEach((el) => this._handleBillboard(el));
-      node.querySelectorAll?.('.jawBone, .bob-card')?.forEach((el) => this._handleHoverPreview(el));
+      node.querySelectorAll?.('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone')?.forEach((el) => this._handleHoverPreview(el));
       node.querySelectorAll?.('.slider-item, .title-card')?.forEach((el) => this._observeCard(el));
     },
 
     _handleModal(modal) {
-      if (this._processed.has(modal)) {
-        const existing = modal.querySelector('.nimdb-badge--modal');
-        if (existing) existing.remove();
-        this._processed.delete(modal);
+      const info = TitleResolver.fromModal(modal);
+      const titleKey = info ? `${info.title}||${info.year || ''}` : null;
+      const prevKey = this._processed.get(modal);
+      if (prevKey && prevKey === titleKey) return;
+      if (prevKey && prevKey !== titleKey) {
+        const old = modal.querySelector('.nimdb-badge--modal');
+        if (old) old.remove();
       }
-      this._processed.add(modal);
+      this._processed.set(modal, titleKey);
       setTimeout(() => {
         const info = TitleResolver.fromModal(modal);
         if (!info) return;
-        const netflixId = NetflixIdExtractor.fromCurrentUrl();
+        const id = NetflixIdExtractor.fromUrl(modal.querySelector('a[href*="/title/"], a[href*="/watch/"]')?.getAttribute('href')) || NetflixIdExtractor.fromCurrentUrl();
         const insertTarget = modal.querySelector('[data-uia="preview-modal-title"]')?.closest('.previewModal--info')
           || modal.querySelector('.previewModal--metadatAndControls-info')
           || modal.querySelector('.previewModal--detailsMetadata-info')
           || modal.querySelector('.previewModal--metadatAndControls');
-        if (insertTarget) LookupManager.resolve(insertTarget, 'modal', info.title, info.year, netflixId);
+        if (insertTarget) LookupManager.resolve(insertTarget, 'modal', info.title, info.year, id);
       }, 400);
     },
 
     _handleBillboard(billboard) {
       if (this._processed.has(billboard)) return;
-      this._processed.add(billboard);
+      this._processed.set(billboard, true);
       setTimeout(() => {
         const logo = billboard.querySelector('.title-logo');
         const title = logo?.getAttribute('alt')?.trim();
@@ -594,21 +600,29 @@
 
     _handleHoverPreview(preview) {
       if (this._processed.has(preview)) return;
-      this._processed.add(preview);
+      this._processed.set(preview, true);
       setTimeout(() => {
-        const titleEl = preview.querySelector('[data-uia="jawbone-title"]') || preview.querySelector('.logo img') || preview.querySelector('.jawBone-title img') || preview.querySelector('img[alt]');
+        const titleEl = preview.querySelector('[data-uia="jawbone-title"]') ||
+          preview.querySelector('[data-uia="title"]') ||
+          preview.querySelector('.logo img') ||
+          preview.querySelector('.jawBone-title img') ||
+          preview.querySelector('img[alt]');
         let title = titleEl?.getAttribute('alt')?.trim() || titleEl?.getAttribute('aria-label')?.trim() || null;
         if (!title) title = preview.querySelector('.video-title, .about-header, h3, h4')?.textContent?.trim() || null;
         if (!title) return;
         const year = preview.querySelector('.year, .meta .year, [data-uia="year"]')?.innerText?.trim()?.match(/(\d{4})/)?.[1] || null;
-        const insertTarget = preview.querySelector('.video-title') || preview.querySelector('.meta') || preview.querySelector('.about-header') || preview;
+        const insertTarget = preview.querySelector('[data-uia="jawbone-info"]') ||
+          preview.querySelector('.video-title') ||
+          preview.querySelector('.meta') ||
+          preview.querySelector('.about-header') ||
+          preview;
         if (insertTarget) { insertTarget.style.position = 'relative'; LookupManager.resolve(insertTarget, 'hover', title, year, NetflixIdExtractor.fromCurrentUrl()); }
       }, 400);
     },
 
     _handleCard(card) {
       if (this._processed.has(card)) return;
-      this._processed.add(card);
+      this._processed.set(card, true);
       const info = TitleResolver.fromCard(card);
       if (!info) return;
       const target = info.container || card;
