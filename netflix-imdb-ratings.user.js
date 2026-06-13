@@ -586,12 +586,14 @@
     },
 
     _handleBillboard(billboard) {
-      if (this._processed.has(billboard)) return;
-      this._processed.set(billboard, true);
+      const logo = billboard.querySelector('.title-logo');
+      const title = logo?.getAttribute('alt')?.trim();
+      if (!title) return;
+      const titleKey = title;
+      const prevKey = this._processed.get(billboard);
+      if (prevKey && prevKey === titleKey) return;
+      this._processed.set(billboard, titleKey);
       setTimeout(() => {
-        const logo = billboard.querySelector('.title-logo');
-        const title = logo?.getAttribute('alt')?.trim();
-        if (!title) return;
         const parent = logo.parentElement;
         if (parent) parent.style.position = 'relative';
         LookupManager.resolve(parent || billboard, 'billboard', title, null, NetflixIdExtractor.fromCurrentUrl());
@@ -599,18 +601,23 @@
     },
 
     _handleHoverPreview(preview) {
-      if (this._processed.has(preview)) return;
-      this._processed.set(preview, true);
+      const titleEl = preview.querySelector('[data-uia="jawbone-title"]') ||
+        preview.querySelector('[data-uia="title"]') ||
+        preview.querySelector('.logo img') ||
+        preview.querySelector('.jawBone-title img') ||
+        preview.querySelector('img[alt]');
+      let title = titleEl?.getAttribute('alt')?.trim() || titleEl?.getAttribute('aria-label')?.trim() || null;
+      if (!title) title = preview.querySelector('.video-title, .about-header, h3, h4')?.textContent?.trim() || null;
+      const year = preview.querySelector('.year, .meta .year, [data-uia="year"]')?.innerText?.trim()?.match(/(\d{4})/)?.[1] || null;
+      const titleKey = title ? `${title}||${year || ''}` : null;
+      const prevKey = this._processed.get(preview);
+      if (prevKey && prevKey === titleKey) return;
+      if (prevKey && prevKey !== titleKey) {
+        const old = preview.querySelector('.nimdb-badge--hover');
+        if (old) old.remove();
+      }
+      this._processed.set(preview, titleKey);
       setTimeout(() => {
-        const titleEl = preview.querySelector('[data-uia="jawbone-title"]') ||
-          preview.querySelector('[data-uia="title"]') ||
-          preview.querySelector('.logo img') ||
-          preview.querySelector('.jawBone-title img') ||
-          preview.querySelector('img[alt]');
-        let title = titleEl?.getAttribute('alt')?.trim() || titleEl?.getAttribute('aria-label')?.trim() || null;
-        if (!title) title = preview.querySelector('.video-title, .about-header, h3, h4')?.textContent?.trim() || null;
-        if (!title) return;
-        const year = preview.querySelector('.year, .meta .year, [data-uia="year"]')?.innerText?.trim()?.match(/(\d{4})/)?.[1] || null;
         const insertTarget = preview.querySelector('[data-uia="jawbone-info"]') ||
           preview.querySelector('.video-title') ||
           preview.querySelector('.meta') ||
@@ -621,10 +628,12 @@
     },
 
     _handleCard(card) {
-      if (this._processed.has(card)) return;
-      this._processed.set(card, true);
       const info = TitleResolver.fromCard(card);
       if (!info) return;
+      const titleKey = `${info.title}||${info.year || ''}`;
+      const prevKey = this._processed.get(card);
+      if (prevKey && prevKey === titleKey) return;
+      this._processed.set(card, titleKey);
       const target = info.container || card;
       target.style.position = 'relative';
       LookupManager.resolve(target, 'card', info.title, info.year, NetflixIdExtractor.fromCard(card));
