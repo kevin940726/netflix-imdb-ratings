@@ -504,6 +504,7 @@
     },
 
     _insertBadge(container, position, entry, netflixId) {
+      if (container.querySelector('.nimdb-badge:not(.nimdb-badge--loading):not(.nimdb-badge--error)')) return;
       const badge = BadgeRenderer.createRating(entry);
       badge.classList.add(`nimdb-badge--${position}`);
       const id = netflixId || entry.key;
