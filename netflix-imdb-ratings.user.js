@@ -648,25 +648,6 @@
     },
   };
 
-  // ─── ROUTE DETECTOR ───────────────────────────────────────────────────────
-
-  const RouteDetector = {
-    _lastUrl: '',
-    init() {
-      const origPush = history.pushState;
-      history.pushState = (...args) => { origPush.apply(this, args); this._onNavigate(); };
-      const origReplace = history.replaceState;
-      history.replaceState = (...args) => { origReplace.apply(this, args); this._onNavigate(); };
-      window.addEventListener('popstate', () => this._onNavigate());
-    },
-    _onNavigate() {
-      const url = window.location.href;
-      if (url === this._lastUrl) return;
-      this._lastUrl = url;
-      setTimeout(() => DOMObserver._scanAll(), 600);
-    },
-  };
-
   // ─── SETTINGS UI ──────────────────────────────────────────────────────────
 
   const Settings = {
@@ -712,7 +693,6 @@
 
     BadgeRenderer.injectStyles();
     BadgeRenderer.initClickHandler();
-    RouteDetector.init();
     DOMObserver.init();
 
     GM_registerMenuCommand('Settings', Settings.show);
