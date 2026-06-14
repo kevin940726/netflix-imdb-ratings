@@ -4,6 +4,8 @@
 // @version      5.3.0
 // @description  Show IMDb ratings on Netflix titles with local caching
 // @author       You
+// @updateURL    https://github.com/kevin940726/netflix-imdb-ratings/raw/master/netflix-imdb-ratings.user.js
+// @downloadURL  https://github.com/kevin940726/netflix-imdb-ratings/raw/master/netflix-imdb-ratings.user.js
 // @match        https://www.netflix.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue

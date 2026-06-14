@@ -13,7 +13,7 @@ A Tampermonkey userscript that shows IMDb ratings on every Netflix title — car
 ### Steps
 
 1. **Install Tampermonkey** from your browser's extension store
-2. **Open the script file** `netflix-imdb-ratings.user.js` in your browser — Tampermonkey will detect it and offer to install
+2. **Install the script** — visit the [raw script URL](https://github.com/kevin940726/netflix-imdb-ratings/raw/master/netflix-imdb-ratings.user.js) in your browser — Tampermonkey will detect it and offer to install
 3. **Confirm installation** when prompted
 4. **Navigate to Netflix** — the script activates automatically on `netflix.com/*`
 5. **Enter your API keys** when prompted on first run:
