@@ -44,10 +44,15 @@
   // ─── NETFLIX ID EXTRACTOR ─────────────────────────────────────────────────
 
   const NetflixId = {
-    fromUrl(url) { return url?.match(/\/(?:title|watch)\/(\d+)/)?.[1] || null; },
+    fromUrl(url) {
+      if (!url) return null;
+      const m = url.match(/\/(?:title|watch)\/(\d+)/); if (m) return m[1];
+      const jbv = url.match(/[?&]jbv=(\d+)/); if (jbv) return jbv[1];
+      return null;
+    },
     fromCurrent() { return this.fromUrl(location.href); },
     fromCard(card) {
-      const link = $('a[href*="/title/"], a[href*="/watch/"]', card) || card.closest('a[href*="/title/"], a[href*="/watch/"]');
+      const link = $('a[href*="/title/"], a[href*="/watch/"], a[href*="jbv="]', card) || card.closest('a[href*="/title/"], a[href*="/watch/"], a[href*="jbv="]');
       if (link) return this.fromUrl(link.getAttribute('href'));
       const dataEl = $('[data-id],[data-titleid]', card) || card.closest('[data-id],[data-titleid]');
       if (dataEl) { const raw = dataEl.getAttribute('data-id') || dataEl.getAttribute('data-titleid'); const id = this.fromUrl(raw) || raw; if (/^\d+$/.test(id)) return id; }
@@ -388,7 +393,7 @@
       $$('.previewModal--container, [role="dialog"], .previewModal--wrapper').forEach(handleModal);
       const bb = $('.billboard-row'); if (bb) handleBillboard(bb);
       $$('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone').forEach(handleHover);
-      $$('.slider-item, .title-card').forEach((el) => {
+      $$('.slider-item, .title-card, [data-uia="standard-card"]').forEach((el) => {
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) handleCard(el);
         else { pending.add(el); intersection.observe(el); }
@@ -405,11 +410,11 @@
     if (node.matches?.('.previewModal--container, [role="dialog"], .previewModal--wrapper')) handleModal(node);
     if (node.matches?.('.billboard-row')) handleBillboard(node);
     if (node.matches?.('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone')) handleHover(node);
-    if (node.matches?.('.slider-item, .title-card')) { const r = node.getBoundingClientRect(); if (r.width > 0 && r.height > 0) handleCard(node); else { pending.add(node); intersection.observe(node); } }
+    if (node.matches?.('.slider-item, .title-card, [data-uia="standard-card"]')) { const r = node.getBoundingClientRect(); if (r.width > 0 && r.height > 0) handleCard(node); else { pending.add(node); intersection.observe(node); } }
     node.querySelectorAll?.('.previewModal--container, [role="dialog"], .previewModal--wrapper')?.forEach(handleModal);
     node.querySelectorAll?.('.billboard-row')?.forEach(handleBillboard);
     node.querySelectorAll?.('.jawBone, .bob-card, [data-uia="jawbone"], [data-uia="jawbone-title"], .previewModal--jawbone')?.forEach(handleHover);
-    node.querySelectorAll?.('.slider-item, .title-card')?.forEach((el) => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) handleCard(el); else { pending.add(el); intersection.observe(el); } });
+    node.querySelectorAll?.('.slider-item, .title-card, [data-uia="standard-card"]')?.forEach((el) => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) handleCard(el); else { pending.add(el); intersection.observe(el); } });
   }
 
   function handleModal(modal) {
@@ -470,12 +475,13 @@
       return { title, year };
     },
     fromCard(card) {
-      let title = clamp($('a[aria-label]', card)?.getAttribute('aria-label'));
+      let title = card.getAttribute?.('aria-label') || null;
+      if (!title) title = clamp($('a[aria-label]', card)?.getAttribute('aria-label'));
       if (!title) title = clamp($('.boxart img, .boxart-container img, img[alt]', card)?.getAttribute('alt'));
       if (!title) title = $('.fallback-text, p.fallback-text', card)?.textContent?.trim() || null;
       if (!title) return null;
       const year = (card.closest('.slider-item') || card).querySelector('.meta, .metadata, .supplemental')?.innerText?.match(/(\d{4})/)?.[1] || null;
-      const container = $('.boxart-container, .title-card', card) || card;
+      const container = card.closest('.slider-item') ? ($('.boxart-container, .title-card', card) || card) : card;
       return { title, year, container };
     },
   };
